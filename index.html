@@ -44,58 +44,12 @@
      transition:all 0.3s;
      text-align:center;
      border-radius:3px;
+     text-align:left;
    }
    .formula:active,.formula:focus{
      background:rgba(255,255,255,0.9);
      color:#335;
    }
-   .navigation{
-     width:100%;
-     overflow:hidden;
-     position:absolute;
-     z-index:10;
-     left:10px;
-     opacity:0.1;
-     transition:all 0.3s;
-     opacity:0;
-     max-height:0;
-   }
-   /* When formula is focussed, open navigation */
-   .formula:focus+.navigation{
-     width:100%;
-     height:auto;
-     top:100px;
-     display:block;
-     opacity:1.0;
-     height:400px;
-     max-height:none;
-   }
-   .navigation-content{
-     color:#333;
-     width:660px;
-     margin:auto;
-     background:#fff;
-     padding:30px;
-     border-radius:3px;
-   }
-   .navigation-content button{
-     width:200px;
-     display:inline-block;
-     margin:auto;
-     margin-bottom:10px;
-     font-size:12px;
-     border:none;
-     padding:7px;
-     background:#3030c0;
-     color:#ffffff;
-     cursor:pointer;
-     border-radius:3px;
-     transition:all 0.1s;
-   }
-   button:active{
-     background:#2020b0;
-   }
-
    label{
      margin-left:10px;
      font-size:12px;
@@ -132,37 +86,12 @@
 
 </head>
 <body>
-  <h1>xor-explorer</h1>
+  <h1>surface-explorer</h1>
   <input onkeyup="new_formula(event.target.value)"
-         class="formula"
-         value="set_formula('(i ^ j) % (j / i) < 1')">
-  <div class="navigation">
-    <div class="navigation-content">
-      <h2>Introduction</h2>
-      <p class="intro">Your formula colors the pixel at position (<span class="symbol">i</span>,<span class="symbol">j</span>) and time <span class="symbol">t</span> if the condition is true.</p>
-      <br/>
-      <div class="error"></div>
-
-      <button onmousedown="set_formula('(i ^ j) - i < 1')">Square-Tile-Fractal</button>
-      <button onmousedown="set_formula('(i ^ j) - i < t % 5000')">Square-Tile-Fractal (with time)</button>
-      <button onmousedown="set_formula('(i ^ j) * i < 1 + t % 10000');go_to(-500,0,6)">XOR rocket</button>
-      <button onmousedown="set_formula('(i ^ j) * (i % j) > t')">Lines</button>
-      <button onmousedown="set_formula('(i ^ j) / (i % j) < 1')">Triangles</button>
-      <button onmousedown="set_formula('(i ^ j) / (i + j) < 1')">Sierpinski</button>
-      <button onmousedown="set_formula('(i ^ j) % (j / i) < 1')">Multitexture - origin</button>
-      <button onmousedown="set_formula('(i ^ j) % (j / i) < 1');go_to(2390,34495,6)">Multitexture - city</button>
-      <button onmousedown="set_formula('(i ^ j) % (j / i) < 1');go_to(-4029,-20501,4)">Multitexture - city 2</button>
-      <button onmousedown="set_formula('(i ^ j) % (j / i) < 1');go_to(97,140506,6)">Multitexture - stars</button>
-      <button onmousedown="set_formula('(i ^ j)  == (i/j * t/100 % 1000)');go_to(0,-100,5)">It's alive!</button>
-      <button onmousedown="set_formula('(i ^ j) - i < (j | i & j/2)')">Weird tree</button>
-
-      <p class="info">
-      </p>
-      <p>
-        To save a picture, you can right click the image and save as.
-      </p>
-    </div>
-  </div>
+         value="vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c"
+         class="formula"/>
+  <div class="error"></div>
+  <div class="info"></div>
   <canvas class="texplorer"
           onmousedown="mousedown(event)"
           onmousemove="mousemove(event)"
@@ -202,8 +131,8 @@
        this.canvas.height = window.innerHeight;
      }
 
-     create_shaders(pixel_operation){
-       pixel_operation = pixel_operation || "(i ^ j) % (j / i) < 1";
+     create_shaders(code){
+       code = code || "(i ^ j) % (j / i) < 1";
        this.fragment_shader = `#version 300 es
 precision highp float;
 
@@ -217,26 +146,34 @@ uniform float cursor_i, cursor_j;
 void main(void){
   float x = UV.x * ratio;
   float y = UV.y;
-  vec2 p = vec2(x,y) - 0.5;
+  vec2 p = vec2(x - 0.5 * ratio,y - 0.5);
   vec4 col = vec4(0.0);
 
   float s = 10.0 * pow(2.0, scale);
 
-  float fi = x * s + offset_i;
-  float fj = y * s + offset_j;
+  p = vec2(-p.y * s - offset_j, p.x * s + offset_i);
 
-  int i = int(fi);
-  int j = int(fj);
-  int t = int(time);
+  vec2 c = vec2(p) * 0.2;
+  vec2 z = vec2(0.0,0.0);
 
-  if(${pixel_operation}){
-    col.rgb += 0.8;
+  for(int i = 0; i < 300; i++){
+    z = ${code};
+
+    float fi = float(i)/300.0;
+    col.r += 0.4 * cos(fi*10.0 + scale * 0.1);
+    col.g += 0.3 * cos(fi*11.0 + scale * 0.2);
+    col.b += 0.3 * cos(fi*12.0 + scale * 0.3);
+
+    if (length(z) > 3.0) {
+      break;
+    }
   }
 
   // debug cursor
-  //if(length(vec2(cursor_i,cursor_j) - vec2(fi,fj)) < 0.01 * s){
-  //  col.r += 1.0;
-  //  col.gb -= 0.8;
+  //if(length(vec2(cursor_i,cursor_j) - p) < 0.01 * s){
+  //  col.r = 1.0;
+  //  col.gb *= 0.1;
+  //  col.a = 1.0;
   //}
 
   col.a = 1.0;
@@ -402,7 +339,7 @@ void main(){
        }
 
        const timeAttribute = gl.getUniformLocation(gl.program, 'time');
-       gl.uniform1f(timeAttribute, new Date().getTime() % 100000);
+       gl.uniform1f(timeAttribute, new Date().getTime() % 10000);
 
        const ratio = this.canvas.width / this.canvas.height;
 
@@ -425,11 +362,11 @@ void main(){
    let surface = new ShaderSurface(canvas);
 
    let info = document.querySelectorAll(".info")[0];
-   let input = document.querySelectorAll("input")[0];
+   let input = document.querySelectorAll(".formula")[0];
 
    let offset_i = 0;
    let offset_j = 0;
-   let scale = 10.0;
+   let scale = 0.1;
    surface.custom_float_uniforms.offset_i = 0;
    surface.custom_float_uniforms.offset_j = 0;
    surface.custom_float_uniforms.scale = scale;
@@ -460,7 +397,7 @@ void main(){
    }
 
    // Null if not moving
-   let original_e = null;
+   var original_e = null;
    let original_offset_i = 0;
    let original_offset_j = 0;
 
@@ -484,14 +421,14 @@ void main(){
    function get_mouse_i(e, _scale, _offset_i){
      _scale = _scale || scale;
      _offset_i = _offset_i || offset_i;
-     return (e.clientX) / canvas.height * (10.0 * Math.pow(2.0, _scale))
+     return (e.clientX - canvas.width/2) / canvas.height * (10.0 * Math.pow(2.0, _scale))
           + _offset_i;
    }
 
    function get_mouse_j(e, _scale, _offset_j){
      _scale = _scale || scale;
      _offset_j = _offset_j || offset_j;
-     return (canvas.height - e.clientY)/canvas.height * (10.0 * Math.pow(2.0, _scale))
+     return (canvas.height/2 - e.clientY)/canvas.height * (10.0 * Math.pow(2.0, _scale))
           + _offset_j;
    }
 
