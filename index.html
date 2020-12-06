@@ -154,19 +154,40 @@ void main(void){
   p = vec2(-p.y * s - offset_j, p.x * s + offset_i);
 
   vec2 c = vec2(p) * 0.2;
+
+  float cr = length(c);
+  float ca = atan(c.y,c.x);
+
+  //cr = 1.0-cr;
+  //ca = ca*16.0;
+  //cr -= 10.0;
+  //ca += 0.5;
+  c = vec2(cr * cos(ca), cr * sin(ca));
+
   vec2 z = vec2(0.0,0.0);
+  float circ = 0.0;
 
   for(int i = 0; i < 300; i++){
     z = ${code};
+    float o = +0.0;
+    float s = 4.0;
+    //z = mod(z + o, vec2(s, s)) - o;
 
     float fi = float(i)/300.0;
-    col.r += 0.4 * cos(fi*10.0 + scale * 0.1);
-    col.g += 0.3 * cos(fi*11.0 + scale * 0.2);
-    col.b += 0.3 * cos(fi*12.0 + scale * 0.3);
-
-    if (length(z) > 3.0) {
-      break;
+    col.rgb += 0.02;
+    if (length(z) > 2.0) {
+      //break;
+      col.rgb *= 0.0;
+      z *= 0.2;
     }
+  }
+
+  if (abs(length(c) - 1.0) < 0.002) {
+    col.rb += 0.4;
+  }
+
+  if (abs(length(c)) < 0.004) {
+    col.rgb *= 0.0;
   }
 
   // debug cursor
@@ -397,14 +418,14 @@ void main(){
    }
 
    // Null if not moving
-   var original_e = null;
+   let original_e = null;
    let original_offset_i = 0;
    let original_offset_j = 0;
 
    function mousedown(e){
      original_e = e;
-     original_offset_i = offset_i;
-     original_offset_j = offset_j;
+     original_offset_i = get_mouse_i(e);
+     original_offset_j = get_mouse_j(e);
    }
 
    let delta_i = 0;
@@ -434,19 +455,22 @@ void main(){
 
    function mousemove(e){
      // Debug cursor position
-     surface.custom_float_uniforms.cursor_i = get_mouse_i(e);
-     surface.custom_float_uniforms.cursor_j = get_mouse_j(e);
+     //surface.custom_float_uniforms.cursor_i = get_mouse_i(e);
+     //surface.custom_float_uniforms.cursor_j = get_mouse_j(e);
 
      if(original_e == null){
        // Not dragging
        return;
      }
 
-     delta_i = -(e.clientX - original_e.clientX) * 1000.0/canvas.height;
-     delta_j =  (e.clientY - original_e.clientY) * 1000.0/canvas.height;
+     current_i = get_mouse_i(e);
+     current_j = get_mouse_j(e);
 
-     offset_i = original_offset_i + delta_i * 0.01 * Math.pow(2.0, scale);
-     offset_j = original_offset_j + delta_j * 0.01 * Math.pow(2.0, scale);
+     delta_i = current_i - original_offset_i;
+     delta_j = current_j - original_offset_j;
+
+     offset_i -= delta_i;
+     offset_j -= delta_j;
 
      surface.custom_float_uniforms.offset_i = offset_i;
      surface.custom_float_uniforms.offset_j = offset_j;
@@ -462,34 +486,19 @@ void main(){
      mouse_i = get_mouse_i(e);
      mouse_j = get_mouse_j(e);
 
-     offset_i += mouse_i;
-     offset_j += mouse_j;
-
-     let s0 = scale;
      scale += Math.sign(e.deltaY) * 0.7;
-     let s1 = scale;
 
      // Keep current value for animation
-     let anim_offset_i = offset_i;
-     let anim_offset_j = offset_j;
+     let anim_offset_i = mouse_i;
+     let anim_offset_j = mouse_j;
 
      // This is the target offset after the animation
      offset_i += mouse_i - get_mouse_i(e);
      offset_j += mouse_j - get_mouse_j(e);
+     surface.custom_float_uniforms.offset_i = offset_i;
+     surface.custom_float_uniforms.offset_j = offset_j;
 
-     // Animate scale and animate position based on scale
-     surface.custom_float_targets.scale = {
-       target_value: scale,
-       on_update: function(scale_value) {
-         scale = scale_value;
-         offset_i =
-           surface.custom_float_uniforms.offset_i =
-             anim_offset_i + mouse_i - get_mouse_i(e, scale_value, anim_offset_i);
-         offset_j =
-           surface.custom_float_uniforms.offset_j =
-             anim_offset_j + mouse_j - get_mouse_j(e, scale_value, anim_offset_j);
-       }
-     };
+     surface.custom_float_uniforms.scale = scale;
 
      update_info();
    }
